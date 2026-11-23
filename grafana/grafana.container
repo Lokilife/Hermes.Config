@@ -1,0 +1,29 @@
+[Unit]
+Description=Grafana observability dashboard
+After=network-online.target prometheus.service loki.service
+
+[Container]
+Image=docker.io/grafana/grafana-oss:latest
+ContainerName=grafana
+UserNS=auto
+User=472:472
+EnvironmentFile=%h/.config/containers/systemd/grafana/.env
+Volume=/srv/containers/grafana/data:/var/lib/grafana:U
+Network=proxy_net
+Network=monitoring_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m
+
+Memory=512m
+PodmanArgs=--cpus=0.5 --pids-limit=150
+# PodmanArgs=--security-opt apparmor=podman-grafana
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,469 @@
+abi <abi/4.0>,
+#include <tunables/global>
+
+# ==============================================================================
+# 1. DIRECT-BINARY SERVICES (No shell allowed at any stage)
+# ==============================================================================
+
+profile podman-meili flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=unconfined,
+
+  # Allow non-execute file operations (read, write, link, lock, mmap .so)
+  file rwlkm,
+
+  # Protect sensitive host /proc and /sys interfaces
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  # ONLY allow Meilisearch itself to execute
+  /bin/meilisearch ix,
+  /usr/local/bin/meilisearch ix,
+}
+
+profile podman-notifypush flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=unconfined,
+
+  file rwlkm,
+
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  # ONLY allow notify_push binary to execute
+  /var/www/html/custom_apps/notify_push/bin/*/notify_push ix,
+}
+
+profile podman-prometheus flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=unconfined,
+
+  file rwlkm,
+
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  # ONLY allow Prometheus binary to execute
+  /bin/prometheus ix,
+}
+
+profile podman-loki flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=unconfined,
+
+  file rwlkm,
+
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  # ONLY allow Loki binary to execute
+  /usr/bin/loki ix,
+}
+
+# ==============================================================================
+# 2. ENTRYPOINT -> LOCKED DAEMON SERVICES (One-way px -> transition)
+# ==============================================================================
+
+# --- PostgreSQL ---
+profile podman-postgres flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /usr/local/bin/docker-entrypoint.sh ix,
+  /bin/* ix,
+  /usr/bin/* ix,
+  /usr/local/bin/* ix,
+  /sbin/* ix,
+  /usr/sbin/* ix,
+
+  # Transition to locked daemon profile (blocks all shells after startup)
+  /usr/local/bin/postgres px -> podman-postgres-daemon,
+  /usr/bin/postgres px -> podman-postgres-daemon,
+}
+
+profile podman-postgres-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-postgres,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  /usr/local/bin/postgres ix,
+  /usr/bin/postgres ix,
+}
+
+# --- Redis ---
+profile podman-redis flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /usr/local/bin/docker-entrypoint.sh ix,
+  /bin/* ix,
+  /usr/bin/* ix,
+  /usr/local/bin/* ix,
+
+  /usr/local/bin/redis-server px -> podman-redis-daemon,
+  /usr/bin/redis-server px -> podman-redis-daemon,
+}
+
+profile podman-redis-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-redis,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  /usr/local/bin/redis-server ix,
+  /usr/bin/redis-server ix,
+}
+
+# --- Nextcloud FPM ---
+profile podman-nextcloud flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /entrypoint.sh ix,
+  /bin/* ix,
+  /usr/bin/* ix,
+  /usr/local/bin/* ix,
+  /sbin/* ix,
+  /usr/sbin/* ix,
+
+  /usr/local/sbin/php-fpm px -> podman-nextcloud-daemon,
+}
+
+profile podman-nextcloud-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-nextcloud,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  # Blocks PHP shell_exec()/exec()/system() because /bin/sh is denied
+  /usr/local/sbin/php-fpm ix,
+}
+
+# --- Collabora Online (CODE) ---
+profile podman-collabora flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  mount,
+  umount,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /start-collabora-online.sh ix,
+  /bin/* ix,
+  /usr/bin/* ix,
+  /sbin/* ix,
+  /usr/sbin/* ix,
+
+  /usr/bin/coolwsd px -> podman-collabora-daemon,
+}
+
+profile podman-collabora-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-collabora,
+  signal (receive) peer=unconfined,
+  mount,
+  umount,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+
+  # Allow only Collabora's internal workers; block /bin/sh & /bin/bash
+  /usr/bin/coolwsd ix,
+  /usr/bin/coolforkit* ix,
+  /usr/bin/coolmount ix,
+  /opt/collaboraoffice/** ix,
+}
+
+# --- Apache Tika ---
+profile podman-tika flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /bin/* ix,
+  /usr/bin/* ix,
+
+  /opt/java/openjdk/bin/java px -> podman-tika-daemon,
+  /usr/bin/java px -> podman-tika-daemon,
+}
+
+profile podman-tika-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-tika,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  # Blocks Java Runtime.getRuntime().exec("/bin/sh")
+  /opt/java/openjdk/bin/java ix,
+  /usr/bin/java ix,
+}
+
+# --- eturnal (STUN/TURN) ---
+profile podman-turn flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /opt/eturnal/bin/* ix,
+  /opt/eturnal/erts-*/bin/* ix,
+  /bin/* ix,
+  /usr/bin/* ix,
+
+  /opt/eturnal/erts-*/bin/beam.smp px -> podman-turn-daemon,
+}
+
+profile podman-turn-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-turn,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  /opt/eturnal/erts-*/bin/beam.smp ix,
+  /opt/eturnal/erts-*/bin/epmd ix,
+  /opt/eturnal/erts-*/bin/inet_gethost ix,
+}
+
+# --- VoidAuth ---
+profile podman-voidauth flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /bin/* ix,
+  /usr/bin/* ix,
+  /usr/local/bin/* ix,
+
+  /usr/local/bin/node px -> podman-voidauth-daemon,
+  /usr/bin/node px -> podman-voidauth-daemon,
+}
+
+profile podman-voidauth-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-voidauth,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  # Blocks Node child_process.exec() shell spawns
+  /usr/local/bin/node ix,
+  /usr/bin/node ix,
+}
+
+# --- CrowdSec ---
+profile podman-crowdsec flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /docker_start.sh ix,
+  /bin/* ix,
+  /usr/bin/* ix,
+  /usr/local/bin/* ix,
+
+  /usr/local/bin/crowdsec px -> podman-crowdsec-daemon,
+  /usr/bin/crowdsec px -> podman-crowdsec-daemon,
+}
+
+profile podman-crowdsec-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-crowdsec,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+
+  /usr/local/bin/crowdsec ix,
+  /usr/bin/crowdsec ix,
+  /usr/local/lib/crowdsec/plugins/** ix,
+}
+
+# --- Nginx ---
+profile podman-nginx flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+
+  /docker-entrypoint.sh ix,
+  /docker-entrypoint.d/* ix,
+  /bin/* ix,
+  /usr/bin/* ix,
+  /sbin/* ix,
+  /usr/sbin/* ix,
+
+  /usr/sbin/nginx px -> podman-nginx-daemon,
+}
+
+profile podman-nginx-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-nginx,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+  /usr/sbin/nginx ix,
+}
+
+# --- Grafana ---
+
+profile podman-grafana flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /sys/** w,
+  /run.sh ix,
+  /bin/* ix,
+  /usr/bin/* ix,
+  /usr/share/grafana/bin/* ix,
+  /usr/share/grafana/bin/grafana px -> podman-grafana-daemon,
+  /usr/share/grafana/bin/grafana-server px -> podman-grafana-daemon,
+}
+
+profile podman-grafana-daemon flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  network,
+  capability,
+  signal (send,receive) peer=@{profile_name},
+  signal (receive) peer=podman-grafana,
+  signal (receive) peer=unconfined,
+  file rwlkm,
+  deny /proc/sys/** w,
+  deny /proc/{kcore,mem,kmem} rwklx,
+  deny /sys/** w,
+  deny mount,
+  deny umount,
+  /usr/share/grafana/bin/grafana ix,
+  /usr/share/grafana/bin/grafana-server ix,
+}

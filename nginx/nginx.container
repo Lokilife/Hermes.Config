@@ -1,0 +1,38 @@
+[Unit]
+Description=Nginx reverse proxy
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/library/nginx:stable-alpine
+ContainerName=nginx
+UserNS=auto
+User=101:101
+PublishPort=80:80
+PublishPort=443:443
+Volume=%h/.config/containers/systemd/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+Volume=%h/.config/containers/systemd/nginx/conf.d:/etc/nginx/conf.d:ro
+Volume=/srv/containers/nginx/data/certs:/etc/letsencrypt:ro
+Volume=/srv/containers/nginx/data/www:/var/www/certbot:ro
+Volume=/var/log/nginx:/var/log/nginx:U
+Network=proxy_net
+Network=monitoring_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+AddCapability=NET_BIND_SERVICE
+ReadOnly=true
+Tmpfs=/var/cache/nginx:rw,noexec,nosuid,nodev,size=64m
+Tmpfs=/run:rw,noexec,nosuid,nodev,size=16m
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m
+
+Memory=256m
+PodmanArgs=--cpus=0.5 --pids-limit=100
+# PodmanArgs=--security-opt apparmor=podman-nginx
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

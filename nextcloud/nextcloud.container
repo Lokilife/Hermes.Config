@@ -1,0 +1,35 @@
+[Unit]
+Description=Nextcloud FPM application
+After=network-online.target postgres.service redis.service
+Requires=postgres.service redis.service
+
+[Container]
+Image=docker.io/library/nextcloud:stable-fpm
+ContainerName=nextcloud
+UserNS=auto
+User=33:33
+EnvironmentFile=%h/.config/containers/systemd/nextcloud/.env
+Volume=/srv/containers/nextcloud/data:/var/www/html:U
+Network=nextcloud_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+AddCapability=CHOWN
+AddCapability=DAC_OVERRIDE
+AddCapability=FOWNER
+AddCapability=SETGID
+AddCapability=SETUID
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=256m
+Tmpfs=/run:rw,noexec,nosuid,nodev,size=32m
+
+Memory=2g
+PodmanArgs=--cpus=2 --memory-reservation=1.5g --pids-limit=300
+# PodmanArgs=--security-opt apparmor=podman-nextcloud
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,17 @@
+eturnal:
+  ## The server's public IPv4 address (autodetected if omitted).
+  relay_ipv4_addr: "94.156.131.158"
+
+  listen:
+    - ip: "::"
+      port: 3478
+      transport: udp
+    - ip: "::"
+      port: 3478
+      transport: tcp
+    - ip: "::"
+      port: 5349
+      transport: tls
+
+  log_dir: stdout
+  log_level: info

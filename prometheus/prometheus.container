@@ -1,0 +1,30 @@
+[Unit]
+Description=Prometheus metrics server
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/prom/prometheus:latest
+ContainerName=prometheus
+UserNS=auto
+User=65534:65534
+Volume=/srv/containers/prometheus/data:/prometheus:U
+Volume=%h/.config/containers/systemd/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+Network=monitoring_net
+Exec=--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.listen-address=:9090 --storage.tsdb.retention.time=30d --storage.tsdb.retention.size=10GB
+
+NoNewPrivileges=true
+DropCapability=ALL
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=32m
+
+Memory=512m
+PodmanArgs=--cpus=0.5 --pids-limit=150
+# PodmanArgs=--security-opt apparmor=podman-prometheus
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

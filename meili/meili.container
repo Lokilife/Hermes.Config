@@ -1,0 +1,28 @@
+[Unit]
+Description=Meilisearch full-text search
+After=network-online.target
+
+[Container]
+Image=docker.io/getmeili/meilisearch:latest
+ContainerName=meilisearch
+UserNS=auto
+User=1000:1000
+EnvironmentFile=%h/.config/containers/systemd/meili/.env
+Volume=/srv/containers/meili/data:/meili_data:U
+Network=nextcloud_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m
+
+Memory=1g
+PodmanArgs=--cpus=1 --pids-limit=100
+# PodmanArgs=--security-opt apparmor=podman-meili
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

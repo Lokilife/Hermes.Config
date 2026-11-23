@@ -1,0 +1,33 @@
+[Unit]
+Description=eturnal STUN/TURN server
+After=network-online.target
+
+[Container]
+Image=ghcr.io/processone/eturnal:latest
+ContainerName=eturnal
+UserNS=auto
+User=9000:9000
+PublishPort=3478:3478/udp
+PublishPort=3478:3478/tcp
+PublishPort=5349:5349/tcp
+EnvironmentFile=%h/.config/containers/systemd/turn/.env
+Volume=%h/.config/containers/systemd/turn/eturnal.yml:/etc/eturnal/eturnal.yml:ro
+Network=nextcloud_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+AddCapability=NET_BIND_SERVICE
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m
+Tmpfs=/opt/eturnal/run:rw,noexec,nosuid,nodev,size=16m
+
+Memory=256m
+PodmanArgs=--cpus=0.5 --pids-limit=80
+# PodmanArgs=--security-opt apparmor=podman-turn
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

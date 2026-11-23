@@ -1,0 +1,26 @@
+[Unit]
+Description=Apache Tika document text extractor
+After=network-online.target
+
+[Container]
+Image=docker.io/apache/tika:latest
+ContainerName=tika
+UserNS=auto
+User=35002:35002
+Network=nextcloud_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=256m
+
+Memory=512m
+PodmanArgs=--cpus=0.5 --pids-limit=100
+# PodmanArgs=--security-opt apparmor=podman-tika
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

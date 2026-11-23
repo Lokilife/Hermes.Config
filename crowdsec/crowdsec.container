@@ -1,0 +1,36 @@
+[Unit]
+Description=CrowdSec security engine
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Container]
+Image=docker.io/crowdsecurity/crowdsec:latest
+ContainerName=crowdsec
+UserNS=auto
+# CrowdSec's entrypoint runs as root, then drops privileges internally.
+# Do NOT set User= here — the hub update step needs write access to /etc/crowdsec.
+Volume=/srv/containers/crowdsec/data:/var/lib/crowdsec/data:U
+Volume=%h/.config/containers/systemd/nginx/crowdsec:/etc/crowdsec:U
+Volume=/var/log/nginx:/var/log/nginx:ro
+Network=proxy_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+AddCapability=CHOWN
+AddCapability=DAC_OVERRIDE
+AddCapability=FOWNER
+AddCapability=SETGID
+AddCapability=SETUID
+ReadOnly=false
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m
+
+Memory=256m
+PodmanArgs=--cpus=0.5 --pids-limit=100
+# PodmanArgs=--security-opt apparmor=podman-crowdsec
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

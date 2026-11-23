@@ -1,0 +1,5 @@
+[Network]
+NetworkName=monitoring_net
+Driver=bridge
+Subnet=10.89.2.0/24
+Gateway=10.89.2.1

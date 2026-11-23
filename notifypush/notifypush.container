@@ -1,0 +1,33 @@
+[Unit]
+Description=Nextcloud High-Performance Backend (notify_push)
+After=network-online.target nextcloud.service
+Requires=nextcloud.service
+BindsTo=nextcloud.service
+
+[Container]
+Image=docker.io/library/nextcloud:stable-fpm
+ContainerName=notify_push
+# Shares nextcloud's user namespace — this is why BindsTo= is mandatory.
+UserNS=container:nextcloud
+User=33:33
+EnvironmentFile=%h/.config/containers/systemd/nextcloud/.env
+Volume=/srv/containers/nextcloud/data:/var/www/html:ro
+Entrypoint=/var/www/html/custom_apps/notify_push/bin/x86_64/notify_push
+Network=nextcloud_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m
+Tmpfs=/run:rw,noexec,nosuid,nodev,size=16m
+
+Memory=256m
+PodmanArgs=--cpus=0.5 --pids-limit=80
+# PodmanArgs=--security-opt apparmor=podman-notifypush
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

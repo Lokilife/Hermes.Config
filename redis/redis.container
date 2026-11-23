@@ -1,0 +1,29 @@
+[Unit]
+Description=Redis cache and locking server
+After=network-online.target
+
+[Container]
+Image=docker.io/library/redis:7-alpine
+ContainerName=redis
+UserNS=auto
+User=999:1000
+EnvironmentFile=%h/.config/containers/systemd/redis/.env
+Volume=/srv/containers/redis/data:/data:U
+Network=nextcloud_net
+Exec=sh -c 'exec redis-server --requirepass "$REDIS_PASSWORD" --maxmemory 512mb --maxmemory-policy allkeys-lru'
+
+NoNewPrivileges=true
+DropCapability=ALL
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m
+
+Memory=512m
+PodmanArgs=--cpus=0.5 --pids-limit=100
+# PodmanArgs=--security-opt apparmor=podman-redis
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

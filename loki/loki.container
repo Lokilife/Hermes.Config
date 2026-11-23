@@ -1,0 +1,28 @@
+[Unit]
+Description=Grafana Loki log aggregation
+After=network-online.target
+
+[Container]
+Image=docker.io/grafana/loki:latest
+ContainerName=loki
+UserNS=auto
+User=10001:10001
+Volume=/srv/containers/loki/data:/loki:U
+Volume=%h/.config/containers/systemd/loki/config.yaml:/etc/loki/config.yaml:ro
+Network=monitoring_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m
+
+Memory=512m
+PodmanArgs=--cpus=0.5 --pids-limit=150
+# PodmanArgs=--security-opt apparmor=podman-loki
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

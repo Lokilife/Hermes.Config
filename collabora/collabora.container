@@ -1,0 +1,37 @@
+[Unit]
+Description=Collabora Online (CODE)
+After=network-online.target
+
+[Container]
+Image=docker.io/collabora/code:latest
+ContainerName=collabora
+UserNS=auto
+User=1001:1001
+EnvironmentFile=%h/.config/containers/systemd/collabora/.env
+Volume=%h/.config/containers/systemd/collabora/coolwsd.xml:/etc/coolwsd/coolwsd.xml:ro
+Network=nextcloud_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+AddCapability=CHOWN
+AddCapability=DAC_OVERRIDE
+AddCapability=FOWNER
+AddCapability=SETGID
+AddCapability=SETUID
+AddCapability=SYS_CHROOT
+AddCapability=MKNOD
+AddCapability=SYS_ADMIN
+ReadOnly=false
+Tmpfs=/opt/cool/child-roots:rw,exec,nosuid,nodev,size=1g
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=256m
+
+Memory=2g
+PodmanArgs=--cpus=2 --memory-reservation=1g --pids-limit=200
+# PodmanArgs=--security-opt apparmor=podman-collabora
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

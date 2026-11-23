@@ -1,0 +1,31 @@
+[Unit]
+Description=VoidAuth OIDC identity provider
+After=network-online.target postgres.service
+Requires=postgres.service
+
+[Container]
+Image=ghcr.io/voidauth/voidauth:latest
+ContainerName=voidauth
+UserNS=auto
+User=1000:1000
+EnvironmentFile=%h/.config/containers/systemd/voidauth/.env
+Network=proxy_net
+Network=nextcloud_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+ReadOnly=true
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=32m
+Tmpfs=/run:rw,noexec,nosuid,nodev,size=16m
+Tmpfs=/app/.next:rw,noexec,nosuid,nodev,size=128m
+
+Memory=512m
+PodmanArgs=--cpus=0.5 --pids-limit=100
+# PodmanArgs=--security-opt apparmor=podman-voidauth
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

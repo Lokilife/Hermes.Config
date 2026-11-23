@@ -1,0 +1,39 @@
+[Unit]
+Description=PostgreSQL shared database
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/library/postgres:17-alpine
+ContainerName=postgres
+UserNS=auto
+# User= intentionally omitted — the entrypoint must run as userns-root to
+# initialize PGDATA on first start, then it drops to UID 70 (postgres) via gosu.
+EnvironmentFile=%h/.config/containers/systemd/postgres/.env
+Volume=/srv/containers/postgres/data:/var/lib/postgresql/data:U
+Volume=%h/.config/containers/systemd/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+Exec=-c hba_file=/etc/postgresql/pg_hba.conf
+Network=nextcloud_net
+
+NoNewPrivileges=true
+DropCapability=ALL
+AddCapability=CHOWN
+AddCapability=DAC_OVERRIDE
+AddCapability=FOWNER
+AddCapability=SETGID
+AddCapability=SETUID
+# ReadOnly= intentionally omitted — initdb needs to write outside the volume
+# on first start. Re-enable later only after verifying a populated volume works.
+Tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m
+Tmpfs=/var/run/postgresql:rw,noexec,nosuid,nodev,size=16m,mode=0770
+
+Memory=2g
+PodmanArgs=--cpus=1.5 --memory-reservation=1g --pids-limit=200
+# PodmanArgs=--security-opt apparmor=podman-postgres
+
+[Service]
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
